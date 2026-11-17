@@ -24,6 +24,9 @@ jobs:
       - name: Unit tests
         run: python3 -m unittest discover -s tests/unit -v
 
+      - name: --add validation test
+        run: python3 tests/add_battery_test.py
+
       - name: System packages (Linux)
         if: runner.os == 'Linux'
         run: |
