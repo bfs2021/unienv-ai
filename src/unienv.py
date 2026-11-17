@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import difflib
 import json
 import os
 import platform
@@ -669,7 +670,15 @@ def cmd_install(args) -> int:
         state["options"]["exclude"] = uniq(state["options"]["exclude"]
                                            + [x.strip() for x in args.exclude.split(",") if x.strip()])
     if args.add:
-        state["batteries"] = uniq(state["batteries"] + [b.strip() for b in args.add.split(",")])
+        req = [b.strip() for b in args.add.split(",") if b.strip()]
+        bad = [b for b in req if b not in recipes_all]
+        if bad:
+            hints = []
+            for b in bad:
+                close = difflib.get_close_matches(b, recipes_all, n=1)
+                hints.append(f"unknown battery: {b}" + (f" (did you mean {close[0]}?)" if close else ""))
+            die("; ".join(hints) + f". Available: {', '.join(recipes_all)}")
+        state["batteries"] = uniq(state["batteries"] + [b for b in req if not recipes_all[b].get("always")])
     UNIENV_HOME.mkdir(parents=True, exist_ok=True)
     save_state(state)
     recipes = active_recipes(recipes_all, state)
