@@ -54,6 +54,23 @@ class HelperTests(unittest.TestCase):
             self.assertTrue(u.remove_block(path, "# BEGIN", "# END"))
             self.assertEqual(path.read_text(), "before\nafter\n")
 
+    def test_block_operations_preserve_file_line_endings(self):
+        for eol in (b"\n", b"\r\n", b"\r"):
+            with self.subTest(eol=eol):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = pathlib.Path(tmp) / "config"
+                    path.write_bytes(b"# My rules" + eol + b"be nice" + eol)
+
+                    self.assertTrue(u.upsert_block(path, "unienv stuff", "# BEGIN", "# END"))
+                    self.assertEqual(
+                        path.read_bytes(),
+                        b"# My rules" + eol + b"be nice" + eol + eol
+                        + b"# BEGIN" + eol + b"unienv stuff" + eol + b"# END" + eol,
+                    )
+
+                    self.assertTrue(u.remove_block(path, "# BEGIN", "# END"))
+                    self.assertEqual(path.read_bytes(), b"# My rules" + eol + b"be nice" + eol)
+
     def test_missing_file_and_empty_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "nested" / "config"

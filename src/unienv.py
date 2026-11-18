@@ -194,9 +194,34 @@ def platform_key() -> str:
     return sys.platform
 
 
+def _read_block_text(path: Path) -> tuple[str, str]:
+    """Read a text file as normalized `\\n` text plus its dominant line ending."""
+    with path.open("r", encoding="utf-8", errors="surrogateescape", newline="") as f:
+        raw = f.read()
+    crlf = raw.count("\r\n")
+    cr = raw.count("\r") - crlf
+    lf = raw.count("\n") - crlf
+    if crlf == 0 and cr == 0 and lf == 0:
+        eol = os.linesep
+    elif crlf >= cr and crlf >= lf:
+        eol = "\r\n"
+    elif cr >= lf:
+        eol = "\r"
+    else:
+        eol = "\n"
+    return raw.replace("\r\n", "\n").replace("\r", "\n"), eol
+
+
+def _write_block_text(path: Path, text: str, eol: str) -> None:
+    """Write normalized `\\n` text using the file's own line ending, without OS translation."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+        f.write(text.replace("\n", eol))
+
+
 def upsert_block(path: Path, body: str, begin: str, end: str, *, top: bool = False) -> bool:
     """Insert or replace a marked block. Returns True if the file changed."""
-    old = path.read_text(encoding="utf-8", errors="surrogateescape") if path.exists() else ""
+    old, eol = _read_block_text(path) if path.exists() else ("", os.linesep)
     block = f"{begin}\n{body.rstrip()}\n{end}\n"
     pattern = re.compile(re.escape(begin) + r".*?" + re.escape(end) + r"\n?", re.S)
     if pattern.search(old):
@@ -207,20 +232,19 @@ def upsert_block(path: Path, body: str, begin: str, end: str, *, top: bool = Fal
         new = old + ("\n" if old and not old.endswith("\n") else "") + ("\n" if old else "") + block
     if new == old:
         return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(new, encoding="utf-8", errors="surrogateescape")
+    _write_block_text(path, new, eol)
     return True
 
 
 def remove_block(path: Path, begin: str, end: str) -> bool:
     if not path.exists():
         return False
-    old = path.read_text(encoding="utf-8", errors="surrogateescape")
+    old, eol = _read_block_text(path)
     new = re.sub(r"\n?" + re.escape(begin) + r".*?" + re.escape(end) + r"\n?", "\n", old, flags=re.S)
     new = new.strip("\n") + ("\n" if new.strip() else "")
     if new == old:
         return False
-    path.write_text(new, encoding="utf-8", errors="surrogateescape")
+    _write_block_text(path, new, eol)
     return True
 
 
