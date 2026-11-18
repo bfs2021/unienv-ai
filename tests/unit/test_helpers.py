@@ -64,8 +64,17 @@ class HelperTests(unittest.TestCase):
                     self.assertTrue(u.upsert_block(path, "unienv stuff", "# BEGIN", "# END"))
                     self.assertEqual(
                         path.read_bytes(),
-                        b"# My rules" + eol + b"be nice" + eol + eol
-                        + b"# BEGIN" + eol + b"unienv stuff" + eol + b"# END" + eol,
+                        eol.join(
+                            [
+                                b"# My rules",
+                                b"be nice",
+                                b"",
+                                b"# BEGIN",
+                                b"unienv stuff",
+                                b"# END",
+                                b"",
+                            ]
+                        ),
                     )
 
                     self.assertTrue(u.remove_block(path, "# BEGIN", "# END"))
